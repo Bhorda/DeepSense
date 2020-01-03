@@ -94,6 +94,8 @@ def deepSense(inputs, train, reuse=False, name='deepSense'):
 		# sensor_inputs shape (BATCH_SIZE, WIDE, FEATURE_DIM, CHANNEL=1)
 		acc_inputs, gyro_inputs = tf.split(sensor_inputs, num_or_size_splits=2, axis=2)
 
+		# TODO: GRV inputs needed
+
 		acc_conv1 = layers.convolution2d(acc_inputs, CONV_NUM, kernel_size=[1, 2*3*CONV_LEN],
 						stride=[1, 2*3], padding='VALID', activation_fn=None, data_format='NHWC', scope='acc_conv1')
 		acc_conv1 = batch_norm_layer(acc_conv1, train, scope='acc_BN1')
@@ -142,7 +144,32 @@ def deepSense(inputs, train, reuse=False, name='deepSense'):
 		gyro_conv_out = tf.reshape(gyro_conv3, [gyro_conv3_shape[0], gyro_conv3_shape[1], 1, gyro_conv3_shape[2], gyro_conv3_shape[3]])	
 
 
-		sensor_conv_in = tf.concat([acc_conv_out, gyro_conv_out], 2)
+		grv_conv1 = layers.convolution2d(grv_inputs, CONV_NUM, kernel_size=[1, 2*3*CONV_LEN],
+						stride=[1, 2*3], padding='VALID', activation_fn=None, data_format='NHWC', scope='grv_conv1')
+		grv_conv1 = batch_norm_layer(grv_conv1, train, scope='grv_BN1')
+		grv_conv1 = tf.nn.relu(grv_conv1)
+		grv_conv1_shape = grv_conv1.get_shape().as_list()
+		grv_conv1 = layers.dropout(grv_conv1, CONV_KEEP_PROB, is_training=train, 
+			noise_shape=[grv_conv1_shape[0], 1, 1, grv_conv1_shape[3]], scope='grv_dropout1')
+
+		grv_conv2 = layers.convolution2d(grv_conv1, CONV_NUM, kernel_size=[1, CONV_LEN_INTE],
+						stride=[1, 1], padding='VALID', activation_fn=None, data_format='NHWC', scope='grv_conv2')
+		grv_conv2 = batch_norm_layer(grv_conv2, train, scope='grv_BN2')
+		grv_conv2 = tf.nn.relu(grv_conv2)
+		grv_conv2_shape = grv_conv2.get_shape().as_list()
+		grv_conv2 = layers.dropout(grv_conv2, CONV_KEEP_PROB, is_training=train,
+			noise_shape=[grv_conv2_shape[0], 1, 1, grv_conv2_shape[3]], scope='grv_dropout2')
+
+		grv_conv3 = layers.convolution2d(grv_conv2, CONV_NUM, kernel_size=[1, CONV_LEN_LAST],
+						stride=[1, 1], padding='VALID', activation_fn=None, data_format='NHWC', scope='grv_conv3')
+		grv_conv3 = batch_norm_layer(grv_conv3, train, scope='grv_BN3')
+		grv_conv3 = tf.nn.relu(grv_conv3)
+		grv_conv3_shape = grv_conv3.get_shape().as_list()
+		grv_conv_out = tf.reshape(grv_conv3, [grv_conv3_shape[0], grv_conv3_shape[1], 1, grv_conv3_shape[2],grv_conv3_shape[3]])
+
+
+
+		sensor_conv_in = tf.concat([acc_conv_out, gyro_conv_out, grv_conv_out], 2)
 		senor_conv_shape = sensor_conv_in.get_shape().as_list()	
 		sensor_conv_in = layers.dropout(sensor_conv_in, CONV_KEEP_PROB, is_training=train,
 			noise_shape=[senor_conv_shape[0], 1, 1, 1, senor_conv_shape[4]], scope='sensor_dropout_in')
