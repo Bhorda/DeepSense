@@ -8,6 +8,7 @@ import math
 import os
 import sys
 
+# TODO: how to format input ? 
 layers = tf.contrib.layers 
 
 SEPCTURAL_SAMPLES = 10
